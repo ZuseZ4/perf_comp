@@ -58,16 +58,16 @@ pub fn init_pattern() -> [u64; 3*5*7*11*13] {
 
 
 #[inline]
-pub fn update_aux_sieve(aux_base: u32, aux_sieve: &mut[u64]
+pub fn update_aux_sieve(aux_base: &mut u32, aux_sieve: &mut[u64]
                         , aux_primes: &[u32], pattern: &[u64]) {
     
-    assert_eq!((aux_base & (_AUX_SIEVE_SPAN_ -1)), 0, "update_aux_sieve: illegal aux_base!");
+    assert_eq!((*aux_base & (_AUX_SIEVE_SPAN_ -1)), 0, "update_aux_sieve: illegal aux_base!");
     
     let first_primes = 3 * 5 * 7 * 11  * 13;
 
     // now initialize the aux_sieve array
 
-    let o = aux_base % first_primes;
+    let o = *aux_base % first_primes;
     let offset = (o + ((o * 105) & 127) * first_primes) >> 7;// 105 = -1/15015 mod 128
 
     let mut i = cmp::min(_AUX_SIEVE_WORDS_, first_primes - offset);
@@ -84,7 +84,7 @@ pub fn update_aux_sieve(aux_base: u32, aux_sieve: &mut[u64]
         i += k;
     }
     
-    if aux_base == 0
+    if *aux_base == 0
     {
         println!("aux_base is 0");
         // mark 1 as not prime, and mark 3, 5, 7, 11, and 13 as prime
@@ -95,11 +95,11 @@ pub fn update_aux_sieve(aux_base: u32, aux_sieve: &mut[u64]
 
     for i in 0.._NUMBER_OF_AUX_PRIMES_ {
         let mut j = aux_primes[i] * aux_primes[i];
-        if j > aux_base + (_AUX_SIEVE_SPAN_ - 1) { break; }
-        if j > aux_base { 
-            j = ( j - aux_base ) >> 1; 
+        if j > *aux_base + (_AUX_SIEVE_SPAN_ - 1) { break; }
+        if j > *aux_base { 
+            j = ( j - *aux_base ) >> 1; 
         } else {
-            j = aux_primes[i] - aux_base % aux_primes[i];
+            j = aux_primes[i] - *aux_base % aux_primes[i];
             if (j & 1) == 0 {
                 j += aux_primes[i];
             }

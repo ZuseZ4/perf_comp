@@ -25,7 +25,7 @@ pub fn main() {
     let (mut aux_sieve, aux_primes) = init_aux_primes();
     while l0 < 32 {
         counter1 += 1;
-        update_aux_sieve(aux_base, &mut aux_sieve, &aux_primes, &pattern);
+        update_aux_sieve(&mut aux_base, &mut aux_sieve, &aux_primes, &pattern);
         let mut i = 0;
         while i < _AUX_SIEVE_WORDS_ {
             let mut j = (l1 - x) / (16 * _POINTER_SIZE_) ;
