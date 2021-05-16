@@ -1,5 +1,5 @@
 use std::time::Instant;
-use sieve::*;
+use perf_comp::*;
 
 
 const PI: [u32;32] = [1,2,4,6,11,18,31,54,
@@ -21,10 +21,11 @@ pub fn main() {
     let mut l0 = 0;
     let mut l1 = 1;
     eprintln!("testing aux_sieve: ");
-    let mut aux: Aux = init_aux_primes();
+    let mut aux_base: u32 = 0;
+    let (mut aux_sieve, aux_primes) = init_aux_primes();
     while l0 < 32 {
         counter1 += 1;
-        update_aux_sieve(&mut aux, &pattern);
+        update_aux_sieve(aux_base, &mut aux_sieve, &aux_primes, &pattern);
         let mut i = 0;
         while i < _AUX_SIEVE_WORDS_ {
             let mut j = (l1 - x) / (16 * _POINTER_SIZE_) ;
@@ -33,12 +34,12 @@ pub fn main() {
                     j = _AUX_SIEVE_WORDS_ - i;
                 }
                 counter2 += 1;
-                c += count_zero_bits(&aux.sieve, i, j);
+                c += count_zero_bits(&aux_sieve, i, j);
                 i += j;
                 x += j * (16 * _POINTER_SIZE_);
             } else {
                 for j in 0..(8*_POINTER_SIZE_) {
-                    if aux.sieve[i as usize] & MARK_MASK[j as usize] == 0 { c+=1; }
+                    if aux_sieve[i as usize] & MARK_MASK[j as usize] == 0 { c+=1; }
                     if x == l1 {
                         assert_eq!(c, PI[l0]);
                             //,"bad pi(2^{})={} != {}\n",l0 + 1,pi[l0],c);
@@ -53,7 +54,7 @@ pub fn main() {
             }
 
         }
-        aux.base += _AUX_SIEVE_SPAN_;
+        aux_base += _AUX_SIEVE_SPAN_;
     }
 
     let end = Instant::now();

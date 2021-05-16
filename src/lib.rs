@@ -2,12 +2,6 @@
 use std::time::Instant;
 use std::cmp;
 
-pub struct Aux {
-    pub sieve: [u64;_AUX_SIEVE_WORDS_ as usize], 
-    pub primes: [u32;_NUMBER_OF_AUX_PRIMES_],
-    pub base: u32,
-}
-
 //const _MARK_MASK_: [u64; 64] = array_init::array_init(|i| 1u64 << i); // come on Const Generics
 pub const MARK_MASK: [u64;64] = {
     let mut res = [0; 64];
@@ -64,62 +58,63 @@ pub fn init_pattern() -> [u64; 3*5*7*11*13] {
 
 
 #[inline]
-pub fn update_aux_sieve(aux: &mut Aux, pattern: &[u64]) {
+pub fn update_aux_sieve(aux_base: u32, aux_sieve: &mut[u64]
+                        , aux_primes: &[u32], pattern: &[u64]) {
     
-    assert_eq!((aux.base & (_AUX_SIEVE_SPAN_ -1)), 0, "update_aux_sieve: illegal aux_base!");
+    assert_eq!((aux_base & (_AUX_SIEVE_SPAN_ -1)), 0, "update_aux_sieve: illegal aux_base!");
     
     let first_primes = 3 * 5 * 7 * 11  * 13;
 
     // now initialize the aux_sieve array
 
-    let o = aux.base % first_primes;
+    let o = aux_base % first_primes;
     let offset = (o + ((o * 105) & 127) * first_primes) >> 7;// 105 = -1/15015 mod 128
 
     let mut i = cmp::min(_AUX_SIEVE_WORDS_, first_primes - offset);
     for j in 0..i {
-        aux.sieve[j as usize] = pattern[(offset + j) as usize];
+        aux_sieve[j as usize] = pattern[(offset + j) as usize];
     }
 
 
     while i < _AUX_SIEVE_WORDS_ {
         let k = cmp::min(_AUX_SIEVE_WORDS_ - i, first_primes);
         for j in 0..k {
-            aux.sieve[(i + j) as usize] = pattern[j as usize ];
+            aux_sieve[(i + j) as usize] = pattern[j as usize ];
         }
         i += k;
     }
     
-    if aux.base == 0
+    if aux_base == 0
     {
         println!("aux_base is 0");
         // mark 1 as not prime, and mark 3, 5, 7, 11, and 13 as prime
-        aux.sieve[0] |= MARK_MASK[0]; 
-        aux.sieve[0] &= !(MARK_MASK[1] | MARK_MASK[2] 
+        aux_sieve[0] |= MARK_MASK[0]; 
+        aux_sieve[0] &= !(MARK_MASK[1] | MARK_MASK[2] 
                           | MARK_MASK[3] | MARK_MASK[5] | MARK_MASK[6]);
     }
 
     for i in 0.._NUMBER_OF_AUX_PRIMES_ {
-        let mut j = aux.primes[i] * aux.primes[i];
-        if j > aux.base + (_AUX_SIEVE_SPAN_ - 1) { break; }
-        if j > aux.base { 
-            j = ( j - aux.base ) >> 1; 
+        let mut j = aux_primes[i] * aux_primes[i];
+        if j > aux_base + (_AUX_SIEVE_SPAN_ - 1) { break; }
+        if j > aux_base { 
+            j = ( j - aux_base ) >> 1; 
         } else {
-            j = aux.primes[i] - aux.base % aux.primes[i];
+            j = aux_primes[i] - aux_base % aux_primes[i];
             if (j & 1) == 0 {
-                j += aux.primes[i];
+                j += aux_primes[i];
             }
             j >>= 1;
         }
         while j < (_AUX_SIEVE_SPAN_ / 2) {
-            mark_2(&mut aux.sieve, j as usize);
-            j += aux.primes[i];
+            mark_2(aux_sieve, j as usize);
+            j += aux_primes[i];
         }
     }
 }
 
 
 
-pub fn init_aux_primes() -> Aux {
+pub fn init_aux_primes() -> ([u64;_AUX_SIEVE_WORDS_ as usize], [u32;_NUMBER_OF_AUX_PRIMES_]) {
     //aux_sieve: &mut [u64], aux_primes: &mut [u32]) {
     let mut aux_sieve:  [u64;_AUX_SIEVE_WORDS_ as usize] = [0;_AUX_SIEVE_WORDS_ as usize];
     let mut aux_primes: [u32;_NUMBER_OF_AUX_PRIMES_] = [0;_NUMBER_OF_AUX_PRIMES_];
@@ -148,9 +143,5 @@ pub fn init_aux_primes() -> Aux {
     let end = Instant::now();
     let duration = end.duration_since(start);
     eprintln!("init_aux_primes took, {:?}\n", duration);
-    Aux {
-        sieve: aux_sieve, 
-        primes: aux_primes,
-        base: 0u32,
-    }
+    (aux_sieve, aux_primes)
 }
