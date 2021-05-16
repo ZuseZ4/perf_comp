@@ -1,5 +1,5 @@
 use std::time::Instant;
-use sieve::*;
+use perf_comp::*;
 
 
 const PI: [u32;32] = [1,2,4,6,11,18,31,54,
