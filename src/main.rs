@@ -1,64 +1,87 @@
 use std::time::Instant;
-use perf_comp::*;
 
+#[derive(Clone)]
+#[repr(C)]
+pub struct Aux {
+    pub sieve: [u64;1 << 12],
+    pub primes: [u32;6536],
+}
 
-const PI: [u32;32] = [1,2,4,6,11,18,31,54,
-                97,172,309,564,1028,1900,3512,6542,
-        12251,23000,43390,82025,155611,295947,564163,1077871,
-2063689,3957809,7603553,14630843,28192750,54400028,105097565,203280221];
+pub const MARK_MASK: [u64;64] = {
+    let mut res = [0; 64];
+    let mut i = 0;
+    while i < 64 {
+        res[i] = 1 << i;
+        i += 1;
+    }
+    res
+};
 
+#[inline(always)]
+fn mark_2(arr: &mut [u64], index: usize) { arr[index >> 6] |= MARK_MASK[index & 63usize]; }
+#[inline]
+const fn test_2(arr: &[u64], index: usize) -> bool { arr[index >> 6] & MARK_MASK[index & 63usize] == 0 }
 
-// test aux sieve
-pub fn main() {
-
-    let start = Instant::now();
-
-    let pattern = init_pattern();
-    let mut counter1 = 0;
-    let mut counter2 = 0;
-    let mut x = 1;
-    let mut c = 1;
-    let mut l0 = 0;
-    let mut l1 = 1;
-    eprintln!("testing aux_sieve: ");
-    let mut aux_base: u32 = 0;
-    let (mut aux_sieve, aux_primes) = init_aux_primes();
-    while l0 < 32 {
-        counter1 += 1;
-        update_aux_sieve(&mut aux_base, &mut aux_sieve, &aux_primes, &pattern);
-        let mut i = 0;
-        while i < _AUX_SIEVE_WORDS_ {
-            let mut j = (l1 - x) / (16 * _POINTER_SIZE_) ;
-            if j > 0 {
-                if j > _AUX_SIEVE_WORDS_ - i {
-                    j = _AUX_SIEVE_WORDS_ - i;
-                }
-                counter2 += 1;
-                c += count_zero_bits(&aux_sieve, i, j);
-                i += j;
-                x += j * (16 * _POINTER_SIZE_);
-            } else {
-                for j in 0..(8*_POINTER_SIZE_) {
-                    if aux_sieve[i as usize] & MARK_MASK[j as usize] == 0 { c+=1; }
-                    if x == l1 {
-                        assert_eq!(c, PI[l0]);
-                            //,"bad pi(2^{})={} != {}\n",l0 + 1,pi[l0],c);
-                        l0 += 1;
-                        println!("l0: {}",l0);
-                        l1 = 2 * l1 + 1;
-                    }
-                    x += 2;
-                    assert!(x <= l1);
-                }
-                i += 1;
-            }
-
+#[inline]
+pub fn update_aux_sieve(aux_sieve: &mut [u64], aux_primes: &[u32]) {
+    for i in 0..6536 {
+        let mut j = aux_primes[i] * aux_primes[i];
+        while j < (1 << 18) { 
+            mark_2(aux_sieve, j as usize);
+            j += aux_primes[i];
         }
-        aux_base += _AUX_SIEVE_SPAN_;
+    }
+}
+
+#[inline]
+pub fn update_aux_struct_sieve(aux: &mut Aux) {
+    for i in 0..6536 {
+        let mut j = aux.primes[i] * aux.primes[i];
+        while j < (1 << 18) { 
+            mark_2(&mut aux.sieve, j as usize);
+            j += aux.primes[i];
+        }
+    }
+}
+
+
+pub fn init_aux_primes() -> ([u64;1 << 12], [u32;6536]) {
+    let mut aux_sieve:  [u64;1 << 12] = [0;1 << 12];
+    let mut aux_primes: [u32;6536] = [1;6536];
+    let start = Instant::now();
+    println!("Initializing aux primes");
+    for i in (3..256).step_by(2) {
+        if test_2(&mut aux_sieve, i >> 1usize) {
+            for j in (((i*i) >> 1)..32768).step_by(i) {
+                mark_2(&mut aux_sieve, j as usize);
+            }
+        }
+    }
+    let mut j = 0;
+    for i in 8..32768 {
+        if test_2(&mut aux_sieve, i) {
+            aux_primes[j] = 2 * (i as u32) + 1;
+            j += 1;
+        }
     }
 
     let end = Instant::now();
     let duration = end.duration_since(start);
-    eprintln!("good, {:?} {} {} \n", duration, counter1, counter2);
+    eprintln!("init_aux_primes took, {:?}\n", duration);
+    (aux_sieve, aux_primes)
+}
 
+pub fn main() {
+
+    let (sieve, primes)  = init_aux_primes();
+    let mut aux = Aux { sieve, primes };
+
+    let start = Instant::now();
+    for _ in 0..8192 {
+        update_aux_struct_sieve(&mut aux); // slow
+        //update_aux_sieve(&mut aux.sieve, &aux.primes); // fast
+    }
+    let end = Instant::now();
+    let duration = end.duration_since(start);
+    eprintln!("duration {:?}\n", duration);
 }
